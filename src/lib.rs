@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-/// FIFO event buffer implementation
+/// FIFO buffer implementation
 /// Push: A, B, C, D
 /// Read: A, B, C, D
 /// If the buffer's capacity is < 4, A is dropped when D is pushed

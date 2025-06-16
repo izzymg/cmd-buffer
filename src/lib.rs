@@ -1,10 +1,10 @@
 use std::{collections::VecDeque, fmt::Debug};
-/// Commands that act as the "input" to the game engine.
-/// FIFO buffer implementation
-/// Push: A, B, C, D
-/// Read: A, B, C, D
-/// If the buffer's capacity is < 4, A is dropped when D is pushed
-/// Read: B, C, D
+// Commands that act as the "input" to the game engine.
+// FIFO buffer implementation
+// Push: A, B, C, D
+// Read: A, B, C, D
+// If the buffer's capacity is < 4, A is dropped when D is pushed
+// Read: B, C, D
 
 pub struct CommandBuffer<T>
 where
@@ -45,7 +45,6 @@ where
         self.events.clear();
     }
 
-    #[allow(dead_code)]
     /// Returns the number of commands currently held in the buffer.
     pub fn len(&self) -> usize {
         self.events.len()
@@ -56,6 +55,10 @@ where
         F: FnMut(&T) -> bool,
     {
         self.events.iter().any(predicate)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.events.is_empty()
     }
 
     /// Retains elements that do not match the predicate and pops off elements that match.

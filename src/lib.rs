@@ -1,5 +1,5 @@
-use std::collections::VecDeque;
-
+use std::{collections::VecDeque, fmt::Debug};
+/// Commands that act as the "input" to the game engine.
 /// FIFO buffer implementation
 /// Push: A, B, C, D
 /// Read: A, B, C, D
@@ -8,14 +8,15 @@ use std::collections::VecDeque;
 
 pub struct CommandBuffer<T>
 where
-    T: Sync + Send + Copy,
+    T: Sync + Send,
 {
     events: VecDeque<T>,
 }
 
+#[allow(unused)]
 impl<T> CommandBuffer<T>
 where
-    T: Sync + Send + Copy,
+    T: Sync + Send,
 {
     /// Creates a new command buffer. If the command buffers length grows to `capacity`, subsequent writes will drop the least-recent command.
     pub fn new(capacity: usize) -> Self {
@@ -40,15 +41,58 @@ where
         self.events.pop_front()
     }
 
+    pub fn clear(&mut self) {
+        self.events.clear();
+    }
+
+    #[allow(dead_code)]
     /// Returns the number of commands currently held in the buffer.
     pub fn len(&self) -> usize {
         self.events.len()
+    }
+
+    pub fn has<F>(&self, mut predicate: F) -> bool
+    where
+        F: FnMut(&T) -> bool,
+    {
+        self.events.iter().any(predicate)
+    }
+
+    /// Retains elements that do not match the predicate and pops off elements that match.
+    /// Returns a vector of popped elements.
+    pub fn retain<F>(&mut self, mut predicate: F) -> Vec<T>
+    where
+        F: FnMut(&T) -> bool,
+    {
+        let mut popped = Vec::new();
+        let mut i = 0;
+        while i < self.events.len() {
+            if predicate(&self.events[i]) {
+                if let Some(val) = self.events.remove(i) {
+                    popped.push(val);
+                }
+            } else {
+                i += 1;
+            }
+        }
+        popped
+    }
+}
+
+impl<T> Debug for CommandBuffer<T>
+where
+    T: Debug + Sync + Send,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CommandBuffer")
+            .field("events", &self.events)
+            .finish()
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::CommandBuffer;
+    use super::*;
 
     #[derive(Debug, Copy, Clone, PartialEq, Eq)]
     enum Event {
@@ -74,5 +118,32 @@ mod test {
         assert_eq!(events.read_command(), Some(Event::Right));
         assert_eq!(events.read_command(), None);
         assert!(events.len() == 0);
+    }
+
+    #[test]
+    fn test_retain_and_pop() {
+        let mut events = CommandBuffer::<Event>::new(10);
+        events.write_command(Event::Up);
+        events.write_command(Event::Down);
+        events.write_command(Event::Left);
+        events.write_command(Event::Right);
+
+        let popped = events.retain(|e| *e == Event::Down || *e == Event::Left);
+        assert_eq!(popped, vec![Event::Down, Event::Left]);
+        assert_eq!(events.len(), 2);
+        assert_eq!(events.read_command(), Some(Event::Up));
+        assert_eq!(events.read_command(), Some(Event::Right));
+    }
+
+    #[test]
+    fn test_has() {
+        let mut events = CommandBuffer::<Event>::new(10);
+        events.write_command(Event::Up);
+        events.write_command(Event::Down);
+        events.write_command(Event::Left);
+        events.write_command(Event::Right);
+
+        assert!(events.has(|e| matches!(e, Event::Up)));
+        assert!(events.has(|e| matches!(e, Event::Down)));
     }
 }
